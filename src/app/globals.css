@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+:root {
+  --background: #090D12;
+  --foreground: #F3F4F6;
+  --card-bg: #121820;
+  --card-elevated: #1A232F;
+  --card-border: rgba(255, 255, 255, 0.07);
+  --accent-lime: #CCFF00;
+  --accent-mint: #10B981;
+  --accent-cyan: #00D2FF;
+  --muted-text: #8E9BAE;
+}
+
+@theme {
+  --color-dark-void: #090D12;
+  --color-surface-base: #121820;
+  --color-surface-card: #161F2B;
+  --color-surface-elevated: #1F2A3A;
+  --color-surface-border: rgba(255, 255, 255, 0.08);
+  --color-neon-lime: #CCFF00;
+  --color-neon-volt: #B5F800;
+  --color-neon-mint: #10B981;
+  --color-neon-cyan: #00D2FF;
+  --color-neon-flame: #FF5E36;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  overflow-x: hidden;
+}
+
+/* Custom modern scrollbars */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+
+/* Ticket cutout masks for Image 1 aesthetic */
+.ticket-edge-left {
+  position: relative;
+}
+.ticket-edge-left::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--background);
+}
+
+.ticket-edge-right {
+  position: relative;
+}
+.ticket-edge-right::after {
+  content: "";
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--background);
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(20, 27, 36, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-elevated {
+  background: rgba(26, 35, 48, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
