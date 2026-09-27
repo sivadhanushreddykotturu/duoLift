@@ -1,21 +1,16 @@
 import type { Metadata, Viewport } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
-import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
-import { ClerkProviderWrapper } from "@/components/auth/ClerkProviderWrapper";
 
 export const metadata: Metadata = {
-  title: "DuoLift — Workout & Progress PWA",
-  description: "Track workouts, stay consistent with your gym partner, and build your physique together.",
+  title: "DuoLift",
+  description: "Stay consistent with your gym buddy.",
   manifest: "/manifest.webmanifest",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "DuoLift",
-  },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "DuoLift" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#090D12",
+  themeColor: "#FAFAFA",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -23,23 +18,15 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProviderWrapper>
-      <html lang="en" className="dark h-full">
-        <head>
-          <meta name="apple-mobile-web-app-capable" content="yes" />
-          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        </head>
-        <body className="min-h-full bg-[#090D12] text-gray-100 antialiased selection:bg-[#CCFF00] selection:text-black">
-          <ServiceWorkerRegister />
-          {children}
-        </body>
+    <ClerkProvider
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+    >
+      <html lang="en" className="h-full">
+        <body className="min-h-full bg-[#FAFAFA]">{children}</body>
       </html>
-    </ClerkProviderWrapper>
+    </ClerkProvider>
   );
 }
