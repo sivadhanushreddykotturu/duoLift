@@ -14,6 +14,15 @@ export function useAppUpdater() {
     if (isCheckingRef.current || isUpdatingRef.current) return false;
     if (process.env.NODE_ENV === "development" && CURRENT_BUILD_ID === "dev" && !isManual) return false;
 
+    // Safety check: Never reload if user is currently typing in an input or form
+    const isUserTyping = typeof document !== "undefined" && 
+      document.activeElement && 
+      ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
+    
+    if (isUserTyping && !isManual) {
+      return false;
+    }
+
     try {
       isCheckingRef.current = true;
 
@@ -27,38 +36,74 @@ export function useAppUpdater() {
       });
 
       if (!res.ok) return false;
+
+      // Ensure response is actually JSON, not HTML redirect
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        return false;
+      }
+
       const serverVersion = await res.json();
 
       // If server buildId differs from running buildId
-      if (serverVersion && serverVersion.buildId && serverVersion.buildId !== CURRENT_BUILD_ID) {
+      if (
+        serverVersion &&
+        serverVersion.buildId &&
+        CURRENT_BUILD_ID !== "dev" &&
+        serverVersion.buildId !== CURRENT_BUILD_ID
+      ) {
         console.log(`[PWA Update] New version detected (Server: ${serverVersion.buildId} vs App: ${CURRENT_BUILD_ID})`);
+        
+        // Double check user isn't typing before reloading
+        const stillTyping = typeof document !== "undefined" && 
+          document.activeElement && 
+          ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
+        
+        if (stillTyping && !isManual) {
+          return false;
+        }
+
         isUpdatingRef.current = true;
 
         // Request Service Worker to update and skip waiting
-        if ("serviceWorker" in navigator) {
-          const registration = await navigator.serviceWorker.getRegistration();
-          if (registration) {
-            await registration.update();
-            if (registration.waiting) {
-              registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+          try {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration) {
+              await registration.update();
+              if (registration.waiting) {
+                registration.waiting.postMessage({ type: "SKIP_WAITING" });
+              }
             }
+          } catch {
+            // ignore SW errors
           }
         }
 
-        // Clean up old CacheStorage code buckets (leaves localStorage/cookies intact)
-        if ("caches" in window) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map((k) => caches.delete(k)));
+        // Clean up old CacheStorage code buckets
+        if (typeof window !== "undefined" && "caches" in window) {
+          try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          } catch {
+            // ignore cache errors
+          }
         }
 
         // Clean reload to new code
-        window.location.reload();
+        if (typeof window !== "undefined") {
+          window.location.reload();
+        }
         return true;
       } else {
         // If version matches, still trigger background SW update check
-        if ("serviceWorker" in navigator) {
-          const reg = await navigator.serviceWorker.getRegistration();
-          if (reg) reg.update();
+        if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+          try {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg) reg.update();
+          } catch {
+            // ignore
+          }
         }
       }
     } catch {
@@ -87,16 +132,12 @@ export function useAppUpdater() {
       }
     };
 
-    const handleFocus = () => {
-      checkForAppUpdate();
-    };
-
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("pageshow", handlePageShow);
-    window.addEventListener("focus", handleFocus);
+    // NOTE: Removed window focus listener to prevent reload when inputs receive focus on iOS!
 
-    // 3. Periodic background polling every 5 minutes for active sessions
-    const interval = setInterval(() => checkForAppUpdate(), 5 * 60 * 1000);
+    // 3. Periodic background polling every 10 minutes for active sessions
+    const interval = setInterval(() => checkForAppUpdate(), 10 * 60 * 1000);
 
     // 4. Handle Service Worker controller change (skipWaiting activation)
     let refreshing = false;
@@ -107,16 +148,15 @@ export function useAppUpdater() {
       }
     };
 
-    if ("serviceWorker" in navigator) {
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
     }
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("pageshow", handlePageShow);
-      window.removeEventListener("focus", handleFocus);
       clearInterval(interval);
-      if ("serviceWorker" in navigator) {
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
         navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
       }
     };

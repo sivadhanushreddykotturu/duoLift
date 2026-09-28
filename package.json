@@ -1,6 +1,6 @@
 {
   "name": "radiant-pascal",
-  "version": "1.0.1023",
+  "version": "1.0.2806",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -304,15 +304,18 @@ function WorkoutRoutineModal({
   saving: boolean;
 }) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const prevIsOpenRef = useRef(false);
 
   useEffect(() => {
-    if (isOpen) {
+    // Only initialize when modal opens (transition from false to true)
+    if (isOpen && !prevIsOpenRef.current) {
       if (initialExercises && initialExercises.length > 0) {
         setExercises(initialExercises.map(e => ({ ...e })));
       } else {
         setExercises([{ name: "", sets: "", reps: "" }]);
       }
     }
+    prevIsOpenRef.current = isOpen;
   }, [isOpen, initialExercises]);
 
   if (!isOpen) return null;
@@ -1759,16 +1762,20 @@ export default function Page() {
   const lastWorkout = previousWorkouts[0] ?? null;
 
   const todayWorkout = (data?.workoutLogs || []).find(w => w.date === today);
-  const todayExercises = todayWorkout?.exercises ?? [];
+  const todayExercises = useMemo(() => todayWorkout?.exercises ?? [], [todayWorkout?.exercises]);
 
   const handleQuickLog = async () => {
     if (logging) return;
     setLogging(true);
     try {
-      if ("vibrate" in navigator) navigator.vibrate([30, 50, 30]);
+      try {
+        if ("vibrate" in navigator) navigator.vibrate([30, 50, 30]);
+      } catch {}
       await fetch("/api/log", { method: "POST" });
       await load();
-      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#000000"] });
+      try {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#000000"] });
+      } catch {}
     } catch (e) {
       console.error(e);
     } finally {
@@ -1779,14 +1786,21 @@ export default function Page() {
   const handleSaveRoutine = async (exercises: Exercise[]) => {
     setLogging(true);
     try {
-      if ("vibrate" in navigator) navigator.vibrate([30, 50, 30]);
-      await fetch("/api/log", {
+      try {
+        if ("vibrate" in navigator) navigator.vibrate([30, 50, 30]);
+      } catch {}
+      const res = await fetch("/api/log", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ exercises }),
       });
+      if (!res.ok) {
+        throw new Error("Failed to save workout");
+      }
       await load();
-      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#000000"] });
+      try {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#000000"] });
+      } catch {}
       setRoutineModalOpen(false);
     } catch (e) {
       console.error(e);
@@ -1805,9 +1819,10 @@ export default function Page() {
 
   const myStreak = calculateStreak(data.logs);
   const partnerStreak = data.partner ? calculateStreak(data.partner.logs) : 0;
+  const isAnyModalOpen = routineModalOpen || dayModal.isOpen || profileModalOpen;
 
   return (
-    <PullToRefresh onRefresh={handleFullRefresh}>
+    <PullToRefresh onRefresh={handleFullRefresh} disabled={isAnyModalOpen}>
       <div className="min-h-screen bg-[#EBEBEB] text-[#111111] flex justify-center">
         <div className="w-full max-w-md px-4 pt-4 pb-8 flex flex-col">
         

@@ -6,10 +6,11 @@ import { RefreshCw } from "lucide-react";
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void> | void;
+  disabled?: boolean;
   children: React.ReactNode;
 }
 
-export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
+export function PullToRefresh({ onRefresh, disabled = false, children }: PullToRefreshProps) {
   const [pullY, setPullY] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const startYRef = useRef(0);
@@ -19,11 +20,32 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
   const MAX_PULL = 100;
 
   useEffect(() => {
+    if (disabled) {
+      setPullY(0);
+      isDraggingRef.current = false;
+      return;
+    }
+
     let startY = 0;
 
     const handleTouchStart = (e: TouchEvent) => {
+      if (disabled || isRefreshing) {
+        isDraggingRef.current = false;
+        return;
+      }
+
+      // Check if touch originated inside an input, form, or modal
+      const target = e.target as HTMLElement | null;
+      if (target) {
+        const isInteractive = target.closest("input, textarea, select, button, form, .modal-open, [role='dialog']");
+        if (isInteractive) {
+          isDraggingRef.current = false;
+          return;
+        }
+      }
+
       // Only initiate pull-to-refresh if user is at the very top of the window
-      if (window.scrollY <= 2 && !isRefreshing) {
+      if (window.scrollY <= 2) {
         startY = e.touches[0].clientY;
         startYRef.current = startY;
         isDraggingRef.current = true;
@@ -33,7 +55,7 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isDraggingRef.current || isRefreshing) return;
+      if (!isDraggingRef.current || isRefreshing || disabled) return;
 
       const currentY = e.touches[0].clientY;
       const diff = currentY - startYRef.current;
@@ -49,14 +71,18 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
     };
 
     const handleTouchEnd = async () => {
-      if (!isDraggingRef.current) return;
+      if (!isDraggingRef.current || disabled) return;
       isDraggingRef.current = false;
 
       if (pullY >= THRESHOLD && !isRefreshing) {
         setIsRefreshing(true);
         setPullY(THRESHOLD * 0.75); // Hold during refresh
         if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-          navigator.vibrate(20);
+          try {
+            navigator.vibrate(20);
+          } catch {
+            // ignore
+          }
         }
 
         try {
@@ -79,12 +105,12 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [pullY, isRefreshing, onRefresh]);
+  }, [pullY, isRefreshing, onRefresh, disabled]);
 
   return (
     <div className="relative w-full">
       {/* Pull Indicator Pill */}
-      {(pullY > 0 || isRefreshing) && (
+      {(pullY > 0 || isRefreshing) && !disabled && (
         <div
           className="fixed top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-150 flex items-center justify-center"
           style={{
