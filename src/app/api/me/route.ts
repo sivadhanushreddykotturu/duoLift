@@ -7,7 +7,7 @@ function makeCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-// GET /api/me  — returns current user + partner data
+// GET /api/me — returns current user + partner data
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -17,29 +17,20 @@ export async function GET() {
   let user = await User.findOne({ clerkId: userId });
 
   if (!user) {
-    // Create on first login
+    // Only call external Clerk API on the very first user creation
     const clerkUser = await currentUser();
     let code = makeCode();
-    // Ensure uniqueness
     while (await User.exists({ code })) code = makeCode();
 
     user = await User.create({
       clerkId: userId,
       name: clerkUser?.firstName ?? clerkUser?.emailAddresses?.[0]?.emailAddress?.split("@")[0] ?? "User",
       email: clerkUser?.emailAddresses?.[0]?.emailAddress ?? "",
+      image: clerkUser?.imageUrl ?? undefined,
       code,
       logs: [],
       photos: [],
     });
-  }
-
-  // If user has no custom image yet, pull Clerk image
-  if (!user.image) {
-    const clerkUser = await currentUser();
-    if (clerkUser?.imageUrl) {
-      user.image = clerkUser.imageUrl;
-      await user.save();
-    }
   }
 
   let partner = null;
@@ -66,5 +57,9 @@ export async function GET() {
     photos: user.photos,
     hasPartner: !!user.partnerId,
     partner,
+  }, {
+    headers: {
+      "Cache-Control": "private, no-cache, no-transform",
+    },
   });
 }

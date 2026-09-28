@@ -1716,7 +1716,15 @@ type Tab = "board" | "photos" | "buddy";
 
 export default function Page() {
   const { isLoaded } = useAuth();
-  const [data, setData] = useState<MeData | null>(null);
+  const [data, setData] = useState<MeData | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("duolift_cached_me");
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return null;
+  });
   const [tab, setTab] = useState<Tab>("board");
   const [logging, setLogging] = useState(false);
   const [routineModalOpen, setRoutineModalOpen] = useState(false);
@@ -1736,7 +1744,13 @@ export default function Page() {
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/me");
-      if (res.ok) setData(await res.json());
+      if (res.ok) {
+        const json = await res.json();
+        setData(json);
+        try {
+          localStorage.setItem("duolift_cached_me", JSON.stringify(json));
+        } catch {}
+      }
     } catch (e) {
       console.error(e);
     }
@@ -1809,10 +1823,16 @@ export default function Page() {
     }
   };
 
-  if (!isLoaded || !data) {
+  // If we don't have cached data yet, show branded app splash
+  if (!data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#EBEBEB]">
-        <div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-black animate-spin" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#EBEBEB] text-[#111111] px-4">
+        <div className="w-16 h-16 bg-black rounded-3xl p-3 shadow-xl border border-white/10 flex items-center justify-center mb-4 animate-pulse">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon-192.png" alt="DuoLift" className="w-full h-full object-contain" />
+        </div>
+        <h2 className="text-xl font-bold tracking-tight">DuoLift</h2>
+        <p className="text-xs text-gray-400 mt-1">Opening your dashboard...</p>
       </div>
     );
   }

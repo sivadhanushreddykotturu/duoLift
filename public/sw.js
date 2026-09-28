@@ -1,11 +1,12 @@
-// Simple offline-cache service worker for DuoLift PWA
-const CACHE_NAME = 'duolift-v2';
+// High-performance offline & instant-start service worker for DuoLift PWA
+const CACHE_NAME = 'duolift-v3';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
   '/icon-192.png',
   '/icon-512.png',
   '/icon.svg',
+  '/ghost.svg',
 ];
 
 self.addEventListener('install', (event) => {
@@ -35,7 +36,7 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Never cache API, Clerk auth, Cloudinary uploads, or version.json
+  // Never cache mutations, API calls, Clerk auth tokens, Cloudinary, or version.json
   if (
     event.request.method !== 'GET' ||
     event.request.url.includes('/api/') ||
@@ -46,19 +47,46 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation fallback & cache-first for static assets
+  // 1. Instant App Shell Loading (Stale-While-Revalidate for navigation)
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match('/') || fetch(event.request);
+      caches.match('/').then((cached) => {
+        const networkFetch = fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const clone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put('/', clone));
+            }
+            return networkResponse;
+          })
+          .catch(() => cached);
+
+        // Serve cached shell immediately in <20ms if available
+        return cached || networkFetch;
       })
     );
     return;
   }
 
+  // 2. Cache-first with background caching for static Next.js assets & icons
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).then((networkResponse) => {
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          (event.request.url.includes('/_next/static/') ||
+            event.request.url.includes('/icon') ||
+            event.request.url.includes('/ghost'))
+        ) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return networkResponse;
+      });
     })
   );
 });
