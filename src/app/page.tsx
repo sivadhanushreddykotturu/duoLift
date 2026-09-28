@@ -16,7 +16,8 @@ import {
   X,
   Zap,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  UserMinus
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { InstallPwaPrompt } from "@/components/pwa/InstallPwaPrompt";
@@ -1514,6 +1515,8 @@ function BuddyTab({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [showUnpairConfirm, setShowUnpairConfirm] = useState(false);
+  const [unpairing, setUnpairing] = useState(false);
 
   const copyCode = () => {
     navigator.clipboard.writeText(data.code);
@@ -1538,6 +1541,21 @@ function BuddyTab({
       onPaired();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUnpair = async () => {
+    setUnpairing(true);
+    try {
+      const res = await fetch("/api/pair", { method: "DELETE" });
+      if (res.ok) {
+        setShowUnpairConfirm(false);
+        onPaired();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setUnpairing(false);
     }
   };
 
@@ -1592,18 +1610,32 @@ function BuddyTab({
 
       {/* Partner Status or Pair Form */}
       {data.hasPartner && data.partner ? (
-        <div className="bg-black text-white rounded-[32px] p-6 shadow-xl flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Linked Partner</p>
-            <h2 className="text-4xl font-medium tracking-tight">{data.partner.name.split(' ')[0]}</h2>
+        <div className="bg-black text-white rounded-[32px] p-6 shadow-xl flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Linked Partner</p>
+              <h2 className="text-3xl font-medium tracking-tight">{data.partner.name.split(' ')[0]}</h2>
+            </div>
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center overflow-hidden border-2 border-white/10 shadow-md">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src={data.partner.image || getAvatarUrl(data.partner.name)} 
+                alt="partner avatar" 
+                className="w-full h-full object-cover" 
+              />
+            </div>
           </div>
-          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center overflow-hidden border-2 border-white/10 shadow-md">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img 
-              src={data.partner.image || getAvatarUrl(data.partner.name)} 
-              alt="partner avatar" 
-              className="w-full h-full object-cover" 
-            />
+
+          <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+            <span className="text-xs text-gray-400">Accountability Partner</span>
+            <button
+              type="button"
+              onClick={() => setShowUnpairConfirm(true)}
+              className="text-xs font-semibold text-red-400 hover:text-red-300 hover:underline flex items-center gap-1.5 py-1 px-2.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              <UserMinus className="w-3.5 h-3.5" />
+              <span>Remove Partner</span>
+            </button>
           </div>
         </div>
       ) : (
@@ -1630,6 +1662,39 @@ function BuddyTab({
             </button>
           </form>
           {error && <p className="text-sm font-medium text-red-500 mt-3 px-2">{error}</p>}
+        </div>
+      )}
+
+      {/* Unpair Confirmation Modal */}
+      {showUnpairConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-xs bg-white rounded-[32px] p-6 shadow-2xl flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-14 h-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center mb-3">
+              <UserMinus className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold tracking-tight text-black">Remove Partner?</h3>
+            <p className="text-xs text-gray-500 mt-2 mb-6 leading-relaxed">
+              Are you sure you want to unlink from <span className="font-bold text-black">{data.partner?.name.split(" ")[0]}</span>? You won&apos;t share streaks or see each other&apos;s live activity until you link again.
+            </p>
+            <div className="w-full flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleUnpair}
+                disabled={unpairing}
+                className="w-full h-12 bg-red-500 hover:bg-red-600 active:scale-[0.98] text-white rounded-2xl font-bold text-sm shadow-md transition-all flex items-center justify-center cursor-pointer"
+              >
+                {unpairing ? "Removing..." : "Yes, Remove Partner"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowUnpairConfirm(false)}
+                disabled={unpairing}
+                className="w-full h-12 bg-gray-100 hover:bg-gray-200 active:scale-[0.98] text-gray-700 rounded-2xl font-bold text-sm transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -29,3 +29,23 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, partnerName: buddy.name });
 }
+
+// DELETE /api/pair - unlinks the current user and their partner
+export async function DELETE() {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  await connectToDatabase();
+
+  const me = await User.findOne({ clerkId: userId });
+  if (!me) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  if (me.partnerId) {
+    const partnerClerkId = me.partnerId;
+    // Unlink both users
+    await User.updateOne({ clerkId: userId }, { $unset: { partnerId: "" } });
+    await User.updateOne({ clerkId: partnerClerkId }, { $unset: { partnerId: "" } });
+  }
+
+  return NextResponse.json({ ok: true, message: "Partner removed successfully" });
+}
