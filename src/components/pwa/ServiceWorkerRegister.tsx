@@ -5,7 +5,7 @@ import { useEffect } from "react";
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
+      const register = () => {
         navigator.serviceWorker
           .register("/sw.js")
           .then((registration) => {
@@ -14,7 +14,14 @@ export function ServiceWorkerRegister() {
           .catch((error) => {
             console.warn("DuoLift SW registration failed:", error);
           });
-      });
+      };
+
+      if (document.readyState === "complete") {
+        register();
+      } else {
+        window.addEventListener("load", register);
+        return () => window.removeEventListener("load", register);
+      }
     }
   }, []);
 

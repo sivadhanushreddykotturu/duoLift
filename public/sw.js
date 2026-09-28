@@ -1,8 +1,11 @@
 // Simple offline-cache service worker for DuoLift PWA
-const CACHE_NAME = 'duolift-v1';
+const CACHE_NAME = 'duolift-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon.svg',
 ];
 
 self.addEventListener('install', (event) => {
@@ -25,7 +28,24 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
+  // Never cache API, Clerk auth, Cloudinary uploads, or version.json
+  if (
+    event.request.method !== 'GET' ||
+    event.request.url.includes('/api/') ||
+    event.request.url.includes('clerk') ||
+    event.request.url.includes('cloudinary') ||
+    event.request.url.includes('version.json')
+  ) {
+    return;
+  }
+
   // Navigation fallback & cache-first for static assets
   if (event.request.mode === 'navigate') {
     event.respondWith(

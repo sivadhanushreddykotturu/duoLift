@@ -33,6 +33,15 @@ export async function GET() {
     });
   }
 
+  // If user has no custom image yet, pull Clerk image
+  if (!user.image) {
+    const clerkUser = await currentUser();
+    if (clerkUser?.imageUrl) {
+      user.image = clerkUser.imageUrl;
+      await user.save();
+    }
+  }
+
   let partner = null;
   if (user.partnerId) {
     const p = await User.findOne({ clerkId: user.partnerId });
@@ -40,7 +49,9 @@ export async function GET() {
       partner = {
         name: p.name,
         code: p.code,
+        image: p.image ?? null,
         logs: p.logs,
+        workoutLogs: p.workoutLogs ?? [],
         photos: p.photos,
       };
     }
@@ -49,7 +60,9 @@ export async function GET() {
   return NextResponse.json({
     name: user.name,
     code: user.code,
+    image: user.image ?? null,
     logs: user.logs,
+    workoutLogs: user.workoutLogs ?? [],
     photos: user.photos,
     hasPartner: !!user.partnerId,
     partner,
