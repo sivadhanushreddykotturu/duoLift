@@ -43,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       appearance={{
         variables: {
           colorPrimary: "#000000",
+          borderRadius: "1rem",
         },
       }}
     >
